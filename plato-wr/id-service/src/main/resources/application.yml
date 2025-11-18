@@ -1,0 +1,26 @@
+# Spring Boot 应用名称
+spring:
+  application:
+    name: id-service
+
+# gRPC 服务器配置
+grpc:
+  server:
+    port: 8080 # gRPC 服务器将在此端口启动
+
+# 暴露 Actuator 的健康检查端点 (推荐)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,metrics"
+
+# ----------------------------------------------------
+# !! 关键 !!
+# 你的 ID 服务的自定义配置
+# ----------------------------------------------------
+id-service:
+  # 实例 ID (0-255)
+  # 在K8s/容器化部署时, 必须通过环境变量覆盖此值!
+  # 例如: -Did-service.instance-id=${POD_ORDINAL_INDEX}
+  instance-id: 0

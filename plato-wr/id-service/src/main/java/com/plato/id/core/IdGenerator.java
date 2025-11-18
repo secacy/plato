@@ -1,6 +1,6 @@
-/**
+package com.plato.id.core; /**
  * @since 2025/11/18 11:15
- * @className IdGeneratorAlgorithm
+ * @className com.plato.id.core.IdGeneratorAlgorithm
  * @author hc
  */
 import java.time.Duration;
@@ -22,7 +22,7 @@ import java.util.Random;
 代码的大部分都是在这些字段的处理，包括它们在整个64位ID中的布局和位操作。
 */
 
-public class IdGeneratorAlgorithm {
+public class IdGenerator {
 
     // --- 1. 定义位掩码和常量 ---
 
@@ -62,7 +62,7 @@ public class IdGeneratorAlgorithm {
      * 构造函数
      * @param instanceId 实例ID (0-255).
      */
-    public IdGeneratorAlgorithm(byte instanceId) {
+    public IdGenerator(byte instanceId) {
         this.tempState = new InternalState();
         this.tempState.instanceId = (long)instanceId & INST_MASK;
         this.random = new Random();
@@ -217,7 +217,7 @@ public class IdGeneratorAlgorithm {
     // --- 示例用法 ---
     public static void main(String[] args) {
         // 1. 初始化一个生成器，实例ID为 10 (必须是 0-255)
-        IdGeneratorAlgorithm generator = new IdGeneratorAlgorithm((byte) 10);
+        IdGenerator generator = new IdGenerator((byte) 10);
 
         // 2. 生成一个ID，业务ID为 5 (必须是 0-63)
         long id1 = generator.gen(5);
@@ -227,11 +227,11 @@ public class IdGeneratorAlgorithm {
         System.out.println("Generated ID 2: " + id2);
 
         // 3. 解码一个ID
-        IdGeneratorAlgorithm.DecodedID decoded = IdGeneratorAlgorithm.decode(id1);
+        IdGenerator.DecodedID decoded = IdGenerator.decode(id1);
         System.out.println("Decoded ID 1: " + decoded);
 
         // 4. 单独获取时间
-        long timestamp = IdGeneratorAlgorithm.getTimeFromId(id1);
+        long timestamp = IdGenerator.getTimeFromId(id1);
         System.out.println("Timestamp from ID 1: " + timestamp);
     }
 }
