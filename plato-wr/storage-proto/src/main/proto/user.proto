@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package com.plato.storage;
+
+option java_multiple_files = true;
+option java_package = "com.plato.storage.api.grpc";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+// =================================================================
+// 1. 公开用户服务 (Public User Service)
+// =================================================================
+
+service StorageUserService {
+  // 创建用户 (注册时调用)
+  rpc CreateUsers(CreateUsersRequest) returns (CreateUsersResponse);
+
+  // 获取用户信息(用于高频列表拉取)(只返回精简的 UserInfo)
+  rpc QueryUsers(QueryUsersRequest) returns (QueryUsersResponse);
+
+  // 获取用户个人资料(用于低频拉取 "个人资料页")
+  rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse);
+
+  // 更新用户个人资料
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse);
+}
+
+// -------------------
+// 核心数据模型
+// -------------------
+
+// 用户消息（用于高频列表）
+message UserInfo {
+  uint64 user_id = 1;    // 全局唯一ID
+  string nickname = 2;
+  string avatar = 3;
+}
+
+// 用户个人资料（用于低频 "个人资料页"）
+message UserProfile {
+  uint64 user_id = 1;
+  string nickname = 2;
+  string avatar = 3;
+  string signature = 4;
+  google.protobuf.Timestamp create_time = 5;
+
+  // -- 结构化扩展字段 --
+  string gender = 6;
+  string location = 7;
+  string birthday = 8;
+
+  // -- 非结构化扩展字段 --
+  map<string, string> extra = 9;
+}
+
+message CreateUsersRequest{
+  repeated UserProfile users_to_create = 1;
+}
+
+message CreateUsersResponse {
+  // 返回成功创建的用户列表
+  repeated UserProfile successful_users = 1;
+
+  // 返回创建失败的用户和原因
+  repeated CreateUserError failed_users = 2;
+}
+
+message CreateUserError {
+  uint64 user_id = 1; // 尝试创建的 user_id
+  int32 error_code = 2;   // 错误码 (e.g., 1 = ALREADY_EXISTS)
+  string error_message = 3; // 错误信息
+}
+
+message QueryUsersRequest{
+  repeated uint64 user_ids = 1;
+}
+
+message QueryUsersResponse{
+  // Key: user_id, Value: UserInfo
+  map<uint64, UserInfo> users = 1;
+}
+
+message GetUserProfileRequest {
+  uint64 user_id = 1;
+}
+message GetUserProfileResponse {
+  UserProfile profile = 1;
+}
+
+message UpdateUserProfileRequest {
+  UserProfile profile = 1;
+  google.protobuf.FieldMask update_mask = 2;
+}
+message UpdateUserProfileResponse {
+  UserProfile updated_profile = 1;
+}
+
+// =================================================================
+// 2. 私有设置服务 (Private Setting Service)
+// =================================================================
+
+service StorageSettingService {
+  // 获取“我”的设置
+  rpc GetUserSettings(GetUserSettingsRequest) returns (GetUserSettingsResponse);
+
+  // 更新“我”的设置
+  rpc UpdateUserSettings(UpdateUserSettingsRequest) returns (UpdateUserSettingsResponse);
+}
+
+message UserSetting {
+  string fontSize = 1;
+  bool darkMode = 2;
+  bool receiveNotification = 3;
+  string language = 4;
+}
+
+message GetUserSettingsRequest {
+  uint64 user_id = 1;  // 由上游业务层传入（已鉴权）
+}
+message GetUserSettingsResponse {
+  UserSetting settings = 1;
+}
+
+message UpdateUserSettingsRequest {
+  uint64 user_id = 1; // 指定为谁更新
+  UserSetting settings = 2;
+  google.protobuf.FieldMask update_mask = 3;
+}
+message UpdateUserSettingsResponse {
+  UserSetting updated_settings = 1;
+}
+
+
+
+

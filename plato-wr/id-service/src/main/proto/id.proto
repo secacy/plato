@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package idservice;
+
+option java_package = "com.plato.id.grpc";
+option java_outer_classname = "IdServiceProto";
+
+// ID 服务定义
+service IdService {
+  // 定义一个 'GenerateId' 方法
+  rpc GenerateId (GenerateIdRequest) returns (GenerateIdResponse) {}
+}
+
+// 请求消息：
+// 客户端需要传入 '业务ID' (bid)
+message GenerateIdRequest {
+  int32 bid = 1; // 对应 0-63 的业务ID
+}
+
+// 响应消息：
+// 服务端返回生成的 64位 ID
+message GenerateIdResponse {
+  int64 id = 1;
+}

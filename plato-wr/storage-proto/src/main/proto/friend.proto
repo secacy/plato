@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package com.plato.storage;
+
+option java_package = "com.plato.storage";
+option java_multiple_files = true;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+// =================================================================
+// 10. 好友关系服务 (Friend Service)
+//
+// 职责：
+// 1. 维护 【用户】和【用户】之间的关系 (Friendship)。
+// 2. 存储好友申请、黑名单等状态。
+// =================================================================
+
+service StorageFriendService {
+  // 1. 发起好友申请
+  // (业务层应检查是否已是好友/黑名单)
+  rpc AddFriend(AddFriendRequest) returns (AddFriendResponse);
+
+  // 2. 同意好友申请
+  // (业务层应在此调用成功后：
+  //  1. 创建一个 type=SINGLE 的 Session [cite: 43]
+  //  2. 为双方创建 InboxItem [cite: 8])
+  rpc AcceptFriend(AcceptFriendRequest) returns (AcceptFriendResponse);
+
+  // 3. 删除/拒绝好友
+  rpc RemoveFriend(RemoveFriendRequest) returns (RemoveFriendResponse);
+
+  // 4. 拉黑用户
+  rpc BlockUser(BlockUserRequest) returns (BlockUserResponse);
+
+  // 5. 取消拉黑
+  rpc UnblockUser(UnblockUserRequest) returns (UnblockUserResponse);
+
+  // 6. 获取好友列表
+  rpc GetFriendList(GetFriendListRequest) returns (GetFriendListResponse);
+
+  // 7. 获取黑名单列表
+  rpc GetBlockList(GetBlockListRequest) returns (GetBlockListResponse);
+}
+
+// -------------------
+// 核心数据模型
+// -------------------
+
+// 这是一个 "单向" 关系模型
+// A看B的关系 (A -> B)
+message FriendRelationship {
+  uint64 user_id = 1; // 关系中的 "对方"
+  FriendStatus status = 2; // "我" 和 "对方" 的状态
+  string alias = 3; // "我" 给 "对方" 的备注名
+  google.protobuf.Timestamp create_time = 4; // 关系建立时间
+
+  map<string, string> extra = 5; // 扩展 (e.g., 来源)
+}
+
+enum FriendStatus {
+  STATUS_UNKNOWN = 0;
+  FRIEND = 1;         // 是好友
+  BLOCKED = 2;        // "我" 拉黑了 "对方"
+  BLOCKED_BY_PEER = 3;  // "我" 被 "对方" 拉黑
+  REQUESTED = 4;      // "我" 申请了 "对方"
+  REQUESTED_BY_PEER = 5; // "对方" 申请了 "我"
+}
+
+// -------------------
+// RPC 消息体
+// -------------------
+
+message AddFriendRequest {
+  uint64 from_user_id = 1;
+  uint64 to_user_id = 2;
+  string message = 3;
+}
+message AddFriendResponse {
+  // ...
+}
+
+message AcceptFriendRequest {
+  uint64 from_user_id = 1; // 谁申请的
+  uint64 to_user_id = 2;   // 谁同意的 (我)
+}
+message AcceptFriendResponse {
+  FriendRelationship relationship = 1; // 返回建立的关系
+}
+
+message RemoveFriendRequest {
+  uint64 user_id = 1;     // "我"
+  uint64 friend_id = 2; // 要删除的好友
+}
+message RemoveFriendResponse {
+  // ...
+}
+
+message BlockUserRequest {
+  uint64 user_id = 1;     // "我"
+  uint64 target_id = 2; // 要拉黑的人
+}
+message BlockUserResponse {
+  // ...
+}
+
+message UnblockUserRequest {
+  uint64 user_id = 1;
+  uint64 target_id = 2;
+}
+message UnblockUserResponse {
+  // ...
+}
+
+message GetFriendListRequest {
+  uint64 user_id = 1; // "我" 的好友列表
+}
+message GetFriendListResponse {
+  repeated FriendRelationship friends = 1;
+}
+
+message GetBlockListRequest {
+  uint64 user_id = 1; // "我" 的黑名单
+}
+message GetBlockListResponse {
+  repeated FriendRelationship blocked_users = 1;
+}
