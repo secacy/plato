@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package com.plato.storage;
 
-option java_package = "com.plato.storage";
+option java_package = "com.plato.api.grpc";
 option java_multiple_files = true;
 
 import "google/protobuf/timestamp.proto";
@@ -23,8 +23,8 @@ service StorageFriendService {
 
   // 2. 同意好友申请
   // (业务层应在此调用成功后：
-  //  1. 创建一个 type=SINGLE 的 Session [cite: 43]
-  //  2. 为双方创建 InboxItem [cite: 8])
+  //  1. 创建一个 type=SINGLE 的 Session
+  //  2. 为双方创建 Inbox)
   rpc AcceptFriend(AcceptFriendRequest) returns (AcceptFriendResponse);
 
   // 3. 删除/拒绝好友

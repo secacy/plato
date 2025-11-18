@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package com.plato.storage;
 
-option java_package = "com.plato.storage";
+option java_package = "com.plato.api.grpc";
 option java_multiple_files = true;
 
 import "google/protobuf/timestamp.proto";

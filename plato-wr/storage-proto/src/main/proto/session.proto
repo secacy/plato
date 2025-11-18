@@ -5,7 +5,7 @@ syntax = "proto3";
 package com.plato.storage;
 
 option java_multiple_files = true;
-option java_package = "com.plato.storage";
+option java_package = "com.plato.api.grpc";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/field_mask.proto";

@@ -4,7 +4,7 @@ syntax = "proto3";
 
 package com.plato.storage;
 
-option java_package = "com.plato.storage";
+option java_package = "com.plato.api.grpc";
 option java_multiple_files = true;
 
 import "google/protobuf/timestamp.proto";
@@ -42,13 +42,13 @@ message Inbox {
   uint64 session_id = 1;
 
   // 1. 最新消息元数据 (来自 主DB)
-  uint64 latest_message_id = 2;         // 最新消息的ID
+  uint64 latest_seq_id = 2;        // 最新消息的seq_id
   MessagePreview last_message_preview = 3; // 最新消息的预览
   google.protobuf.Timestamp update_time = 4; // 列表排序的依据 (通常是最新消息时间)
 
   // 2. 未读状态 (一个来自Redis, 一个来自DB)
   int32 unread_count = 5;       // 【易变】未读数 (来自 Counter Server - Redis)
-  uint64 last_read_message_id = 6; // 【稳定】用户的已读游标 (来自 主DB)
+  uint64 last_read_seq_id = 6;  // 【稳定】用户的已读游标 (来自 主DB)
 
   // 3. 用户个人设置 (来自 主DB)
   bool is_pinned = 7;     // 是否置顶
@@ -85,7 +85,7 @@ message QueryInboxesResponse {
 message UpdateInboxReadCursorRequest {
   uint64 user_id = 1;
   uint64 session_id = 2;
-  uint64 last_read_message_id = 3; // 告诉服务器 "我已经读到这条message_id了"
+  uint64 last_read_seq_id = 3; // 告诉服务器 "我已经读到这条seq_id了"
 }
 
 message UpdateInboxReadCursorResponse {

@@ -6,7 +6,7 @@ syntax = "proto3";
 
 package com.plato.storage;
 
-option java_package = "com.plato.storage";
+option java_package = "com.plato.api.grpc";
 option java_multiple_files = true;
 
 import "google/protobuf/timestamp.proto";
@@ -33,12 +33,13 @@ service StorageMessageService {
 message Message {
   uint64 msg_id = 1;         // 全局唯一ID
   uint64 session_id = 2;        // 会话 ID
-  uint64 sender_id = 3;      // 发送者 User ID
-  string client_message_id = 4;  // 客户端生成ID，仅用于幂等
-  MessageType msg_type = 5; // 消息类型
-  bytes body = 6;           // 消息体 (Protobuf 或 JSON 序列化后的二进制)
-  MessageStatus status = 7;  // 消息状态
-  google.protobuf.Timestamp send_time = 8; // 服务器收到消息的时间
+  uint64 seq_id = 3; // 【新增】: 由Raft状态机分配的，会话内严格递增ID
+  uint64 sender_id = 4;      // 发送者 User ID
+  string client_message_id = 5;  // 客户端生成ID，仅用于幂等
+  MessageType msg_type = 6; // 消息类型
+  bytes body = 7;           // 消息体 (Protobuf 或 JSON 序列化后的二进制)
+  MessageStatus status = 8;  // 消息状态
+  google.protobuf.Timestamp send_time = 9; // 服务器收到消息的时间
 }
 
 // 消息类型枚举
@@ -73,7 +74,7 @@ message CreateMessagesRequest {
 }
 
 message CreateMessagesResponse {
-  // Key: client_message_id, Value: UserInfo
+  // Key: client_message_id, Value: messageCreationResult
   map<string, MessageCreationResult> results = 1;
 }
 
@@ -99,10 +100,9 @@ message CreateMessageRequest {
 }
 
 message CreateMessageResponse {
-  // 成功时，返回服务器分配的ID和时间
-  // 失败时，直接返回 gRPC 错误码（例如 ALREADY_EXISTS）
-  uint64 msg_id = 1; // 服务器分配的ID
-  google.protobuf.Timestamp server_time = 2;  // 服务器入库时间
+  uint64 msg_id = 1; // 全局唯一ID
+  uint64 seq_id = 2; // 【新增】会话内序列ID
+  google.protobuf.Timestamp server_time = 3;  // 服务器入库时间
 }
 
 // -------------------
@@ -111,7 +111,7 @@ message CreateMessageResponse {
 
 message QueryMessagesRequest {
   uint64 session_id = 1;        // 会话ID
-  uint64 anchor_msg_id = 2;  // 锚点消息ID (比如从哪条消息开始向前/向后拉)(客户端本地已知的最新或最旧的 msg_id)
+  uint64 anchor_seq_id = 2;  // 锚点ID (比如从哪条消息开始向前/向后拉)(客户端本地已知的最新或最旧的 seq_id)
   Direction direction = 3;  // 拉取方向
   int32 limit = 4;          // 拉取条数
 }
@@ -122,7 +122,7 @@ enum Direction {
 }
 
 message QueryMessagesResponse {
-  repeated Message messages = 1; // 按 msg_id 排序
+  repeated Message messages = 1;
   bool has_more = 2;      // 提示客户端，这个方向是否还有更多数据
 }
 
@@ -132,8 +132,8 @@ message QueryMessagesResponse {
 
 message UpdateMessageStateRequest {
   // 业务层应负责鉴权 (e.g., 只有发送者才能撤回)
-  uint64 conversation_id = 1;
-  uint64 message_id = 2;      // 定位要更新的消息
+  uint64 session_id = 1; // 用于路由到正确的Raft Group
+  uint64 seq_id = 2;      // 定位要更新的消息
   MessageStatus new_status = 3; // 目标状态 (e.g., RECALLED)
 }
 
