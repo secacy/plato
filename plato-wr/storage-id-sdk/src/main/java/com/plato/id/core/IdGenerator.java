@@ -62,7 +62,7 @@ public class IdGenerator {
      * 构造函数
      * @param instanceId 实例ID (0-255).
      */
-    public IdGenerator(byte instanceId) {
+    public IdGenerator(int instanceId) {
         this.tempState = new InternalState();
         this.tempState.instanceId = (long)instanceId & INST_MASK;
         this.random = new Random();
@@ -137,35 +137,7 @@ public class IdGenerator {
     }
 
 
-    // --- 5. 编码与解码---
-
-    /**
-     * 'ID' 结构体，用于'decode'方法的返回。
-     * 这是一个不可变的数据传输对象 (DTO)。
-     */
-    public static class DecodedID {
-        public final long time;
-        public final long instanceId;
-        public final long bid;
-        public final long num;
-
-        public DecodedID(long time, long instanceId, long bid, long num) {
-            this.time = time;
-            this.instanceId = instanceId;
-            this.bid = bid;
-            this.num = num;
-        }
-
-        @Override
-        public String toString() {
-            return "DecodedID{" +
-                    "time=" + time + " (Instant: " + Instant.ofEpochSecond(time) + ")" +
-                    ", instanceId=" + instanceId +
-                    ", bid=" + bid +
-                    ", num=" + num +
-                    '}';
-        }
-    }
+    // --- 5. 编码---
 
     /**
      * 编码
@@ -186,52 +158,5 @@ public class IdGenerator {
                 (i.instanceId << 23) |
                 (i.bid << 17) |
                 i.num;
-    }
-
-    /**
-     * 解码
-     * @param id 64位ID
-     * @return 解码后的 DecodedID 对象
-     */
-    public static DecodedID decode(long id) {
-        // 使用位移和掩码来提取
-        // (id >>> 31) 使用无符号右移来获取32位的时间戳
-        long time = (id >>> 31) & TIME_MASK;
-        long instanceId = (id >>> 23) & INST_MASK;
-        long bid = (id >>> 17) & BID_MASK;
-        long num = id & NUM_MASK;
-
-        return new DecodedID(time, instanceId, bid, num);
-    }
-
-    /**
-     * 从ID中获取时间戳
-     * @param id 64位ID
-     * @return 秒级时间戳
-     */
-    public static long getTimeFromId(long id) {
-        // 优化：我们不需要解码所有内容，只需提取时间
-        return (id >>> 31) & TIME_MASK;
-    }
-
-    // --- 示例用法 ---
-    public static void main(String[] args) {
-        // 1. 初始化一个生成器，实例ID为 10 (必须是 0-255)
-        IdGenerator generator = new IdGenerator((byte) 10);
-
-        // 2. 生成一个ID，业务ID为 5 (必须是 0-63)
-        long id1 = generator.gen(5);
-        long id2 = generator.gen(5);
-
-        System.out.println("Generated ID 1: " + id1);
-        System.out.println("Generated ID 2: " + id2);
-
-        // 3. 解码一个ID
-        IdGenerator.DecodedID decoded = IdGenerator.decode(id1);
-        System.out.println("Decoded ID 1: " + decoded);
-
-        // 4. 单独获取时间
-        long timestamp = IdGenerator.getTimeFromId(id1);
-        System.out.println("Timestamp from ID 1: " + timestamp);
     }
 }

@@ -6,7 +6,7 @@ spring:
 # gRPC 服务器配置
 grpc:
   server:
-    port: 8080 # gRPC 服务器将在此端口启动
+    port: 9091 # gRPC 服务器将在此端口启动
 
 # 暴露 Actuator 的健康检查端点 (推荐)
 management:
