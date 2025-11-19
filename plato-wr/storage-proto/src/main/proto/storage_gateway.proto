@@ -1,0 +1,241 @@
+syntax = "proto3";
+
+package com.plato.gateway;
+
+option go_package = "github.com/plato/proto/gateway;gateway";
+option java_package = "com.plato.gateway";
+option java_multiple_files = true;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// =============================================================================
+// Service 1: 消息核心服务 (Message Service)
+// 职责：负责消息数据的落地 (TiDB)、查询 (Timeline) 和 状态变更。
+// =============================================================================
+service StorageMessageService {
+  // -------------------------------------------------------
+  // 写入接口
+  // -------------------------------------------------------
+
+  // 单条保存 (最常用的接口)
+  // 内部逻辑：Check Redis幂等 -> Snowflake生成ID -> Redis Incr Seq -> TiDB Insert -> Redis Inbox Update
+  rpc SaveMessage(SaveMessageRequest) returns (SaveMessageResponse);
+
+  // 批量保存 (用于消息转发、数据迁移、系统广播)
+  // 内部逻辑：批量执行上述流程，建议内部使用并发处理
+  rpc SaveMessages(SaveMessagesRequest) returns (SaveMessagesResponse);
+
+  // -------------------------------------------------------
+  // 读取接口
+  // -------------------------------------------------------
+
+  // 拉取消息历史 (Timeline Pull)
+  // 场景：用户打开会话、下拉刷新、新设备同步
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+
+  // -------------------------------------------------------
+  // 状态变更接口
+  // -------------------------------------------------------
+
+  // 更新消息状态 (撤回 / 删除)
+  // 注意：这是软删除或状态位更新，不会物理删除 TiDB 里的数据
+  rpc UpdateMessageStatus(UpdateMessageStatusRequest) returns (google.protobuf.Empty);
+}
+
+// =============================================================================
+// Service 2: 收件箱服务 (Inbox Service)
+// 职责：提供用户视角的“会话列表”和“未读数”管理。
+// 数据源：主要来自 Redis (ZSET/Hash)，部分冷数据可能回源 TiDB。
+// =============================================================================
+service StorageInboxService {
+  // 拉取会话列表 (Sync)
+  // 场景：APP 首页“消息” Tab
+  rpc GetInboxes(GetInboxesRequest) returns (GetInboxesResponse);
+
+  // 设置已读 (Mark as Read)
+  // 场景：用户点进某个会话，或者在该会话停留
+  // 逻辑：更新 Redis 中该用户的 last_read_seq_id，并重新计算 unread_count
+  rpc SetInboxRead(SetInboxReadRequest) returns (google.protobuf.Empty);
+
+  // 设置会话属性 (置顶 / 免打扰)
+  // 逻辑：更新 Redis/DB 中的用户配置，影响未读数的小红点逻辑
+  rpc SetInboxAttributes(SetInboxAttributesRequest) returns (google.protobuf.Empty);
+}
+
+// =============================================================================
+// Service 3: 群组元数据服务 (Group Metadata Service)
+// 职责：存储层需要知道“群里有哪些人”才能进行写扩散 (Fan-out)。
+// 注意：这不是业务层的“加群”接口，而是业务层加群成功后，同步数据给存储层的接口。
+// =============================================================================
+service StorageGroupService {
+  // 同步群成员列表
+  // 场景：建群、拉人、踢人
+  // 逻辑：将成员列表写入 TiDB/Redis，供 SaveMessage 时查找目标用户
+  rpc UpsertGroupMembers(UpsertGroupMembersRequest) returns (google.protobuf.Empty);
+
+  // 移除群成员
+  rpc RemoveGroupMembers(RemoveGroupMembersRequest) returns (google.protobuf.Empty);
+}
+
+// =============================================================================
+// 核心消息定义 (Data Models)
+// =============================================================================
+
+message SaveMessageRequest {
+  uint64 session_id = 1; // 分区键
+  uint64 sender_id = 2;  // 发送者
+
+  // 必填：客户端生成的唯一ID (UUID)，用于 Redis 幂等去重窗口 (5分钟)
+  string client_message_id = 3;
+
+  // 消息元数据
+  int32 msg_type = 4;     // 1=Text, 2=Image, 3=Video, 4=File...
+  bytes content = 5;     // 核心内容 payload
+  // 注：这里虽然 Proto 传过来的是“流”，但我们在 TiDB 建表时，推荐将 content 字段设为 JSON 类型（而不是 TEXT 或 BLOB）。
+  // 优势：TiDB 支持对 JSON 内部字段的索引和查询。
+
+  // 扩展字段 (可选)
+  // 用于存储 @列表、引用消息ID 等业务元数据
+  map<string, string> extra = 6;
+}
+
+// 响应极其精简，只返回生成的 ID
+message SaveMessageResponse {
+  uint64 msg_id = 1;      // 全局唯一 ID (Snowflake)
+  uint64 seq_id = 2;      // 会话内序列号 (Redis Gen)
+  int64 server_time_ms = 3; // 落盘时间戳
+}
+
+message SaveMessagesRequest {
+  repeated SaveMessageRequest requests = 1;
+}
+
+message SaveMessagesResponse {
+  // Key: client_message_id (用于回填对应关系)
+  // Value: 结果
+  map<string, SaveMessageResult> results = 1;
+}
+
+message SaveMessageResult {
+  oneof result {
+    SaveMessageResponse success = 1;
+    Error error = 2; // 局部失败 (e.g. 甚至不需要，因为一般要么全成要么全败，但为了健壮性可留)
+  }
+}
+
+message Error {
+  int32 code = 1;
+  string message = 2;
+}
+
+// -------------------------------------------------------
+
+message GetMessagesRequest {
+  uint64 session_id = 1;
+
+  // 锚点 SeqID。0 表示最新/最旧
+  uint64 anchor_seq_id = 2;
+
+  // 拉取方向
+  enum Direction {
+    BACKWARD = 0; // 向旧消息拉 (历史记录) -> seq_id < anchor
+    FORWARD = 1;  // 向新消息拉 (增量同步) -> seq_id > anchor
+  }
+  Direction direction = 3;
+
+  int32 limit = 4; // 限制条数，e.g. 50
+}
+
+message GetMessagesResponse {
+  repeated Message messages = 1;
+  bool has_more = 2; // 是否还有更多
+}
+
+// 存储层返回的完整消息体
+message Message {
+  uint64 msg_id = 1;
+  uint64 session_id = 2;
+  uint64 seq_id = 3;
+  uint64 sender_id = 4;
+
+  int32 msg_type = 5;
+  bytes content = 6;
+  // 注：这里虽然 Proto 传过来的是“流”，但我们在 TiDB 建表时，推荐将 content 字段设为 JSON 类型（而不是 TEXT 或 BLOB）。
+  // 优势：TiDB 支持对 JSON 内部字段的索引和查询。
+
+  // 状态: 0=Normal, 1=Recalled, 2=Deleted
+  int32 status = 7;
+  int64 create_time_ms = 8;
+
+  map<string, string> extra = 9;
+}
+
+// -------------------------------------------------------
+
+message UpdateMessageStatusRequest {
+  uint64 session_id = 1;
+  uint64 seq_id = 2;      // 只需要 SeqID 就能定位 (配合 SessionID)
+
+  int32 new_status = 3;   // e.g., 1=RECALLED
+  map<string, string> extension = 4; // e.g., 存撤回者的ID，或者"管理员删除了此消息"的提示文案
+}
+
+// -------------------------------------------------------
+
+message GetInboxesRequest {
+  uint64 user_id = 1;
+  // 分页游标 (通常用 update_time_ms 或 score)
+  int64 anchor_time_ms = 2;
+  int32 limit = 3;
+}
+
+message GetInboxesResponse {
+  repeated InboxItem inboxes = 1;
+}
+
+message InboxItem {
+  uint64 session_id = 1;
+
+  // 1. 计数
+  int32 unread_count = 2; // 实时计算: max_seq - read_seq
+
+  // 2. 最后一条消息预览 (用于列表展示)
+  string last_msg_content_preview = 3; // 截断的文本或 "[图片]"
+  int64 last_msg_time_ms = 4;
+  uint64 last_msg_sender_id = 5;
+
+  // 3. 属性
+  bool is_pinned = 6;
+  bool is_muted = 7;
+}
+
+message SetInboxReadRequest {
+  uint64 user_id = 1;
+  uint64 session_id = 2;
+  uint64 read_seq_id = 3; // 读到了哪里
+}
+
+message SetInboxAttributesRequest {
+  uint64 user_id = 1;
+  uint64 session_id = 2;
+
+  oneof attribute {
+    bool is_pinned = 3;
+    bool is_muted = 4;
+  }
+}
+
+// -------------------------------------------------------
+
+message UpsertGroupMembersRequest {
+  uint64 session_id = 1;
+  repeated uint64 member_ids = 2;
+  // 这里只存 ID。存储层不需要知道成员的昵称、角色。
+  // 只要知道"该把消息扩散给谁"即可。
+}
+
+message RemoveGroupMembersRequest {
+  uint64 session_id = 1;
+  repeated uint64 member_ids = 2;
+}

@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package com.plato.storage.admin.v1;
+
+option go_package = "github.com/plato/proto/admin;admin";
+option java_package = "com.plato.admin";
+option java_multiple_files = true;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+
+// =============================================================================
+// Service: 内部群组同步服务 (Internal Group Sync Service)
+// 职责：维护存储层所需的“群成员列表”副本，用于消息写扩散 (Fan-out)。
+// 调用方：业务层 (Business Layer) 在完成业务逻辑（如加群审批）后调用。
+// =============================================================================
+service StorageGroupInternalService {
+
+  // 1. 全量同步/重置群成员 (Heavy Weight)
+  // 场景：创建新群、群成员数据出现不一致时的修复、每日夜间校对
+  // 逻辑：删除该 Session 在存储层的所有旧成员，替换为新列表
+  rpc ResetGroupMembers(ResetGroupMembersRequest) returns (google.protobuf.Empty);
+
+  // 2. 增量更新群成员 (Light Weight)
+  // 场景：日常有人加入、退出、被踢
+  // 逻辑：只对 diff 部分进行增删，性能更高
+  rpc PatchGroupMembers(PatchGroupMembersRequest) returns (google.protobuf.Empty);
+}
+
+// =============================================================================
+// Service: 数据治理与合规服务 (Governance Service)
+// 职责：处理“非用户行为”的数据操作，如后台强制删除、反垃圾处理。
+// =============================================================================
+service StorageGovernanceService {
+
+  // 1. 强制物理删除/屏蔽消息
+  // 场景：内容安全审核（涉黄/涉政），需要让消息对所有人都不可见
+  // 区别：用户侧撤回是 UpdateStatus，这里可能是物理覆写或强标记
+  rpc AdminRecallMessage(AdminRecallMessageRequest) returns (google.protobuf.Empty);
+}
+
+// -------------------------------------------------------
+// Request Definitions
+// -------------------------------------------------------
+
+message ResetGroupMembersRequest {
+  uint64 session_id = 1;
+  repeated uint64 member_ids = 2; // 完整的成员 ID 列表
+}
+
+message PatchGroupMembersRequest {
+  uint64 session_id = 1;
+
+  // 要添加的用户 ID 列表
+  repeated uint64 added_member_ids = 2;
+
+  // 要移除的用户 ID 列表
+  repeated uint64 removed_member_ids = 3;
+}
+
+message AdminRecallMessageRequest {
+  uint64 session_id = 1;
+  uint64 seq_id = 2;
+
+  // 撤回原因 (存入 extension 字段，供客户端展示 "该消息因违规已被屏蔽")
+  string reason = 3;
+
+  // 操作人 (Admin ID)
+  string operator = 4;
+}
