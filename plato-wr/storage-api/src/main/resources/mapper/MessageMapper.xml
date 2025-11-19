@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.plato.api.repository.mapper.MessageMapper">
+
+    <!-- ResultMap for MessageEntity with JSON fields -->
+    <resultMap id="BaseResultMap" type="com.plato.api.repository.entity.MessageEntity">
+        <result column="session_id" property="sessionId" jdbcType="BIGINT"/>
+        <result column="seq_id" property="seqId" jdbcType="BIGINT"/>
+        <result column="msg_id" property="msgId" jdbcType="BIGINT"/>
+        <result column="sender_id" property="senderId" jdbcType="BIGINT"/>
+        <result column="msg_type" property="msgType" jdbcType="INTEGER"/>
+        <result column="content" property="content" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+        <result column="extra" property="extra" jdbcType="VARCHAR" typeHandler="com.plato.api.repository.typehandler.JsonMapTypeHandler"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- Insert message -->
+    <insert id="insert" parameterType="com.plato.api.repository.entity.MessageEntity">
+        INSERT INTO message (
+            session_id,
+            seq_id,
+            msg_id,
+            sender_id,
+            msg_type,
+            content,
+            status,
+            extra,
+            create_time
+        ) VALUES (
+            #{sessionId},
+            #{seqId},
+            #{msgId},
+            #{senderId},
+            #{msgType},
+            #{content},
+            #{status},
+            #{extra, typeHandler=com.plato.api.repository.typehandler.JsonMapTypeHandler},
+            #{createTime}
+        )
+    </insert>
+
+</mapper>
+

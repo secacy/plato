@@ -6,10 +6,12 @@
 spring:
   application:
     name: storage-api
+  profiles:
+    active: dev
 
   # Kafka 配置
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${server.host}:9092
     producer:
       # 序列化器
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -27,7 +29,7 @@ spring:
 
   # TiDB 数据源配置 (兼容 MySQL 协议)
   datasource:
-    url: jdbc:mysql://localhost:4000/im_storage?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://${server.host}:4000/im_storage?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
     password: 
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -42,8 +44,9 @@ spring:
   # Redis 配置
   data:
     redis:
-      host: localhost
+      host: ${server.host}
       port: 6379
+      password: ${redis.password}
       database: 0
       # 连接池配置
       lettuce:
@@ -53,8 +56,8 @@ spring:
           min-idle: 5
           max-wait: 3000ms
 
-# MyBatis Plus 配置
-mybatis-plus:
+# MyBatis 配置
+mybatis:
   configuration:
     # 日志实现
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
@@ -64,6 +67,8 @@ mybatis-plus:
   type-aliases-package: com.plato.api.repository.entity
   # Mapper XML 位置
   mapper-locations: classpath*:mapper/**/*.xml
+  # TypeHandler 扫描路径
+  type-handlers-package: com.plato.api.repository.typehandler
 
 # gRPC 服务端配置
 grpc:
