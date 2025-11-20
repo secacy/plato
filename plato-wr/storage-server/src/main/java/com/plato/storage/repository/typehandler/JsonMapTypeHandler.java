@@ -31,9 +31,20 @@ public class JsonMapTypeHandler extends BaseTypeHandler<Map<String, String>> {
     public void setNonNullParameter(PreparedStatement ps, int i, Map<String, String> parameter, JdbcType jdbcType)
             throws SQLException {
         try {
-            ps.setString(i, OBJECT_MAPPER.writeValueAsString(parameter));
+            String json = OBJECT_MAPPER.writeValueAsString(parameter);
+            ps.setString(i, json);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to convert Map to JSON string", e);
+        }
+    }
+
+    @Override
+    public void setParameter(PreparedStatement ps, int i, Map<String, String> parameter, JdbcType jdbcType)
+            throws SQLException {
+        if (parameter == null) {
+            ps.setNull(i, java.sql.Types.VARCHAR);
+        } else {
+            setNonNullParameter(ps, i, parameter, jdbcType);
         }
     }
 

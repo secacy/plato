@@ -9,7 +9,7 @@
     <version>1.0.0</version>
     <packaging>pom</packaging>
     <modules>
-        <module>storage-api</module>
+        <module>storage-server</module>
     </modules>
 
     <parent>

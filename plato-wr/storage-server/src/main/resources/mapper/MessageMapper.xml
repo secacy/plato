@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.plato.api.repository.mapper.MessageMapper">
+<mapper namespace="com.plato.storage.repository.mapper.MessageMapper">
 
     <!-- ResultMap for MessageEntity with JSON fields -->
     <resultMap id="BaseResultMap" type="com.plato.storage.repository.entity.MessageEntity">
@@ -9,9 +9,9 @@
         <result column="msg_id" property="msgId" jdbcType="BIGINT"/>
         <result column="sender_id" property="senderId" jdbcType="BIGINT"/>
         <result column="msg_type" property="msgType" jdbcType="INTEGER"/>
-        <result column="content" property="content" jdbcType="VARCHAR"/>
+        <result column="content" property="content" jdbcType="OTHER" typeHandler="com.plato.storage.repository.typehandler.JsonStringTypeHandler"/>
         <result column="status" property="status" jdbcType="INTEGER"/>
-        <result column="extra" property="extra" jdbcType="VARCHAR" typeHandler="com.plato.storage.repository.typehandler.JsonMapTypeHandler"/>
+        <result column="extra" property="extra" jdbcType="OTHER" typeHandler="com.plato.storage.repository.typehandler.JsonMapTypeHandler"/>
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
     </resultMap>
 
@@ -33,9 +33,9 @@
             #{msgId},
             #{senderId},
             #{msgType},
-            #{content},
+            #{content, jdbcType=OTHER, typeHandler=com.plato.storage.repository.typehandler.JsonStringTypeHandler},
             #{status},
-            #{extra, typeHandler=com.plato.api.repository.typehandler.JsonMapTypeHandler},
+            #{extra, jdbcType=OTHER, typeHandler=com.plato.storage.repository.typehandler.JsonMapTypeHandler},
             #{createTime}
         )
     </insert>
@@ -60,9 +60,9 @@
             #{item.msgId},
             #{item.senderId},
             #{item.msgType},
-            #{item.content},
+            #{item.content, jdbcType=OTHER, typeHandler=com.plato.storage.repository.typehandler.JsonStringTypeHandler},
             #{item.status},
-            #{item.extra, typeHandler=com.plato.storage.repository.typehandler.JsonMapTypeHandler},
+            #{item.extra, jdbcType=OTHER, typeHandler=com.plato.storage.repository.typehandler.JsonMapTypeHandler},
             #{item.createTime}
             )
         </foreach>

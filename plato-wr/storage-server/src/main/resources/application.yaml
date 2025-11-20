@@ -64,11 +64,11 @@ mybatis:
     # 下划线转驼峰
     map-underscore-to-camel-case: true
   # 实体类扫描路径
-  type-aliases-package: com.plato.api.repository.entity
+  type-aliases-package: com.plato.storage.repository.entity
   # Mapper XML 位置
   mapper-locations: classpath*:mapper/**/*.xml
   # TypeHandler 扫描路径
-  type-handlers-package: com.plato.api.repository.typehandler
+  type-handlers-package: com.plato.storage.repository.typehandler
 
 # gRPC 服务端配置
 grpc:

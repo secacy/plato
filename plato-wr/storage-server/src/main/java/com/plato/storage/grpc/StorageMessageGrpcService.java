@@ -1,8 +1,8 @@
 package com.plato.storage.grpc;
 
 import com.google.protobuf.Empty;
+import com.plato.storage.exception.MessageNotReadyException;
 import com.plato.storage.service.MessageService;
-import com.plato.storage.service.MessageServiceV2;
 import com.plato.gateway.GetMessagesRequest;
 import com.plato.gateway.GetMessagesResponse;
 import com.plato.gateway.Message;
@@ -13,6 +13,7 @@ import com.plato.gateway.SaveMessagesResponse;
 import com.plato.gateway.SaveMessageResult;
 import com.plato.gateway.StorageMessageServiceGrpc;
 import com.plato.gateway.UpdateMessageStatusRequest;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,8 +35,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StorageMessageGrpcService extends StorageMessageServiceGrpc.StorageMessageServiceImplBase {
 
-    private final MessageServiceV2 messageServiceV2;
-    private final MessageService messageService; // 用于 updateMessageStatus
+    private final MessageService messageService;
 
     @Override
     public void saveMessage(SaveMessageRequest request,
@@ -45,7 +45,7 @@ public class StorageMessageGrpcService extends StorageMessageServiceGrpc.Storage
                     request.getSessionId(), request.getSenderId(), request.getClientMessageId());
 
             // 执行保存逻辑（Micro-Batching）
-            SaveMessageResponse response = messageServiceV2.saveMessage(request);
+            SaveMessageResponse response = messageService.saveMessage(request);
 
             // 返回响应
             responseObserver.onNext(response);
@@ -68,7 +68,7 @@ public class StorageMessageGrpcService extends StorageMessageServiceGrpc.Storage
             // 批量处理（Micro-Batching）
             for (SaveMessageRequest req : request.getRequestsList()) {
                 try {
-                    SaveMessageResponse singleResponse = messageServiceV2.saveMessage(req);
+                    SaveMessageResponse singleResponse = messageService.saveMessage(req);
 
                     // 构建成功结果
                     SaveMessageResult result = SaveMessageResult.newBuilder()
@@ -110,7 +110,7 @@ public class StorageMessageGrpcService extends StorageMessageServiceGrpc.Storage
                     request.getSessionId(), request.getDirection(), request.getLimit());
 
             // 执行查询逻辑（Redis Cache + Gap Detection）
-            List<Message> messages = messageServiceV2.getMessages(request);
+            List<Message> messages = messageService.getMessages(request);
 
             // 构建响应
             GetMessagesResponse response = GetMessagesResponse.newBuilder()
@@ -139,6 +139,16 @@ public class StorageMessageGrpcService extends StorageMessageServiceGrpc.Storage
 
             responseObserver.onNext(Empty.getDefaultInstance());
             responseObserver.onCompleted();
+
+        } catch (MessageNotReadyException e) {
+            // 消息尚未就绪（可能在批处理队列中），返回 UNAVAILABLE 状态码
+            // 客户端应该稍后重试
+            log.warn("UpdateMessageStatus failed - message not ready: {}", e.getMessage());
+            responseObserver.onError(
+                    Status.UNAVAILABLE
+                            .withDescription(e.getMessage())
+                            .withCause(e)
+                            .asRuntimeException());
 
         } catch (Exception e) {
             log.error("UpdateMessageStatus failed", e);

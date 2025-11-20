@@ -1,0 +1,39 @@
+Redis (数据结构)
+- 消息 (hot message):
+  - 职责：存储会话的消息的索引
+  - Key: cache:msgs:<session_id>
+    - Type: ZSET
+    - Score: <seq_id>
+    - Value: <msg_id>
+    - 注意要限制长度（如只保留最近 1000 条），使用 ZREMRANGEBYRANK 定期修剪旧数据。
+  - Key: msg_meta:<msg_id>
+    - Type: String
+    - Value：Protobuf 序列化后的二进制数据（比 JSON 节省 50%+ 内存，且解析更快）。
+    - TTL: 1day
+- 会话列表 (Session List - 倒排):
+  - 职责: 存储“我的会话列表”，按最后一条消息时间排序。
+  - Key: user_sessions:<user_id>
+    - Type: ZSET
+    - Score: <last_msg_timestamp>
+    - Value: <session_id>
+  - Key: session_meta:<user_id>
+    - Type: HASH
+    - Field: session_id
+    - Value: 该会话的预览数据(包含 unread_count, last_seq_id, is_pinned) (使用 JSON 或 Protobuf 序列化)
+- 未读计数 (Unread Count):
+  - 职责：存储用户对于会话的未读数
+  - Key: unread_count:<user_id>
+  - Type: HASH
+  - Field: <session_id>
+  - Value: <count>
+- 成员缓存 (Member Cache):
+  - 职责: 存储“会话-成员”关系
+  - Key: session_members:<session_id>
+  - Type: SET
+  - Value: <user_id_1>, <user_id_2>, ...
+- 去重窗口:
+  - 职责：标记短时已落库的客户端消息ID，用于去重判断
+  - Key: dedup:<session_id>:<client_message_id>
+  - Type: String
+  - Value: "processing"
+  - TTL：通常设置为 300秒 (5分钟)。

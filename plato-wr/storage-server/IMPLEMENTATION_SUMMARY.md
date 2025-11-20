@@ -174,7 +174,7 @@ unread_count:{user_id}      HASH   Field=session_id, Value=count
 - 索引说明
 - TiDB 优化建议
 
-### ✅ database.sql (已更新)
+### ✅ schema.sql (已更新)
 - 添加了 `t_conversation_meta` 表
 - 添加了 Micro-Batching 流程说明
 
@@ -239,7 +239,7 @@ storage:
 
 ### 1. 初始化数据库
 ```bash
-mysql -h 127.0.0.1 -P 4000 -u root im_storage < database.sql
+mysql -h 127.0.0.1 -P 4000 -u root im_storage < schema.sql
 ```
 
 ### 2. 配置文件
