@@ -10,6 +10,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>storage-server</module>
+        <module>storage-consumer</module>
     </modules>
 
     <parent>

@@ -20,12 +20,6 @@ Redis (数据结构)
     - Type: HASH
     - Field: session_id
     - Value: 该会话的预览数据(包含 unread_count, last_seq_id, is_pinned) (使用 JSON 或 Protobuf 序列化)
-- 未读计数 (Unread Count):
-  - 职责：存储用户对于会话的未读数
-  - Key: unread_count:<user_id>
-  - Type: HASH
-  - Field: <session_id>
-  - Value: <count>
 - 成员缓存 (Member Cache):
   - 职责: 存储“会话-成员”关系
   - Key: session_members:<session_id>
@@ -37,3 +31,20 @@ Redis (数据结构)
   - Type: String
   - Value: "processing"
   - TTL：通常设置为 300秒 (5分钟)。
+
+
+- 未读计数 (Unread Count):
+  - 职责：存储用户对于会话的未读数
+  - Key: unread_count:<user_id>
+  - Type: HASH
+  - Field: <session_id>
+  - Value: <count>
+  
+风险：未读数 (`unread_count`) 的维护
+
+- 现状：使用 Redis Hash `INCR` 计数。
+- 问题：分布式环境下，计数器非常容易由“多重消费”或“消息丢失”导致不准。一旦不准，用户体验极差（显示有红点，点进去没消息）。
+- 建议：不要直接存未读数。
+  - 存储用户的 `read_seq` (已读水位)。
+  - 未读数 = `session.max_seq` (当前会话最新序号) - `user.read_seq` (用户已读序号)。
+  - 这是一个计算值，永远准确，且支持多端同步。
