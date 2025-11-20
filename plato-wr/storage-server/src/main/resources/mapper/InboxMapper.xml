@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.plato.api.repository.mapper.InboxMapper">
+
+    <!-- ResultMap for InboxEntity -->
+    <resultMap id="BaseResultMap" type="com.plato.storage.repository.entity.InboxEntity">
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="session_id" property="sessionId" jdbcType="BIGINT"/>
+        <result column="last_read_seq_id" property="lastReadSeqId" jdbcType="BIGINT"/>
+        <result column="is_pinned" property="isPinned" jdbcType="BOOLEAN"/>
+        <result column="is_muted" property="isMuted" jdbcType="BOOLEAN"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- Insert or Update inbox record -->
+    <insert id="insertOrUpdate" parameterType="com.plato.storage.repository.entity.InboxEntity">
+        INSERT INTO inbox (
+            user_id,
+            session_id,
+            last_read_seq_id,
+            is_pinned,
+            is_muted,
+            update_time
+        ) VALUES (
+            #{userId},
+            #{sessionId},
+            #{lastReadSeqId},
+            #{isPinned},
+            #{isMuted},
+            #{updateTime}
+        )
+        ON DUPLICATE KEY UPDATE
+            last_read_seq_id = VALUES(last_read_seq_id),
+            is_pinned = VALUES(is_pinned),
+            is_muted = VALUES(is_muted),
+            update_time = VALUES(update_time)
+    </insert>
+
+    <!-- Batch Insert or Update inbox records -->
+    <insert id="insertOrUpdateBatch" parameterType="java.util.List">
+        INSERT INTO inbox (
+            user_id,
+            session_id,
+            last_read_seq_id,
+            is_pinned,
+            is_muted,
+            update_time
+        ) VALUES
+        <foreach collection="list" item="entity" separator=",">
+            (
+                #{entity.userId},
+                #{entity.sessionId},
+                #{entity.lastReadSeqId},
+                #{entity.isPinned},
+                #{entity.isMuted},
+                #{entity.updateTime}
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            last_read_seq_id = VALUES(last_read_seq_id),
+            is_pinned = VALUES(is_pinned),
+            is_muted = VALUES(is_muted),
+            update_time = VALUES(update_time)
+    </insert>
+
+</mapper>
+
