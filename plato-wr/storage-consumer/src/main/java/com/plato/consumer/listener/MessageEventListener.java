@@ -4,6 +4,7 @@ import com.plato.consumer.event.EventParser;
 import com.plato.consumer.event.EventType;
 import com.plato.consumer.event.MessageEvent;
 import com.plato.consumer.service.ReadFanoutService;
+import com.plato.consumer.service.SearchFanoutService;
 import com.plato.consumer.service.WriteFanoutService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +23,9 @@ import org.springframework.stereotype.Component;
  * 
  * Consumer 的职责：
  * 1. 解析事件
- * 2. 执行写扩散（Job A）
- * 3. 执行读扩散（Job B）
+ * 2. 执行写扩散（Job A）- 更新所有成员的会话列表
+ * 3. 执行读扩散（Job B）- 缓存消息到 Redis
+ * 4. 执行搜索扇出（Job C）- 同步消息到 Elasticsearch
  * 
  * @author hc
  * @since 2025/11/20
@@ -36,6 +38,7 @@ public class MessageEventListener {
     private final EventParser eventParser;
     private final WriteFanoutService writeFanoutService;
     private final ReadFanoutService readFanoutService;
+    private final SearchFanoutService searchFanoutService;
 
     /**
      * 监听消息事件
@@ -116,6 +119,9 @@ public class MessageEventListener {
             // Job B: 读扩散（缓存消息到 Redis 公共缓存）
             readFanoutService.fanout(event);
 
+            // Job C: 搜索扇出（同步消息到 Elasticsearch）
+            searchFanoutService.fanout(event);
+
             log.info("INSERT event handled: msgId={}", event.getMsgId());
 
         } catch (Exception e) {
@@ -134,8 +140,11 @@ public class MessageEventListener {
             log.debug("Handling UPDATE event: msgId={}, status={}", 
                       event.getMsgId(), event.getStatus());
 
-            // 只需要更新缓存中的消息状态
+            // 更新 Redis 缓存中的消息状态
             readFanoutService.handleStatusUpdate(event);
+
+            // 更新 Elasticsearch 索引中的消息状态
+            searchFanoutService.handleStatusUpdate(event);
 
             // 可选：如果需要更新会话列表的预览（比如显示"消息已撤回"）
             // 可以在这里调用 writeFanoutService 更新预览文本
@@ -158,8 +167,11 @@ public class MessageEventListener {
         try {
             log.debug("Handling DELETE event: msgId={}", event.getMsgId());
 
-            // 从缓存中删除消息
+            // 从 Redis 缓存中删除消息
             readFanoutService.handleStatusUpdate(event);
+
+            // 从 Elasticsearch 索引中删除消息
+            searchFanoutService.handleStatusUpdate(event);
 
             log.info("DELETE event handled: msgId={}", event.getMsgId());
 
