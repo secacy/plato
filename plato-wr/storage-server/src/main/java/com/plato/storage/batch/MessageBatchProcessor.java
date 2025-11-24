@@ -1,9 +1,9 @@
 package com.plato.storage.batch;
 
 import com.plato.storage.redis.MessageCacheService;
-import com.plato.storage.repository.entity.ConversationMetaEntity;
+import com.plato.storage.repository.entity.SessionMetaEntity;
 import com.plato.storage.repository.entity.MessageEntity;
-import com.plato.storage.repository.mapper.ConversationMetaMapper;
+import com.plato.storage.repository.mapper.SessionMetaMapper;
 import com.plato.storage.repository.mapper.MessageMapper;
 import com.plato.gateway.Message;
 import com.google.protobuf.ByteString;
@@ -36,7 +36,7 @@ import java.util.List;
 public class MessageBatchProcessor {
 
     private final MessageMapper messageMapper;
-    private final ConversationMetaMapper conversationMetaMapper;
+    private final SessionMetaMapper sessionMetaMapper;
     private final MessageCacheService messageCacheService;
 
     /**
@@ -58,19 +58,19 @@ public class MessageBatchProcessor {
 
         try {
             // ========== Step 1: 锁定并获取 max_seq ==========
-            ConversationMetaEntity meta = conversationMetaMapper.selectForUpdate(sessionId);
+            SessionMetaEntity meta = sessionMetaMapper.selectForUpdate(sessionId);
             long currentMaxSeq;
 
             if (meta == null) {
                 // 首次写入，初始化元数据
                 currentMaxSeq = 0L;
-                meta = ConversationMetaEntity.builder()
+                meta = SessionMetaEntity.builder()
                         .sessionId(sessionId)
                         .maxSeq(0L)
                         .createTime(LocalDateTime.now())
                         .updateTime(LocalDateTime.now())
                         .build();
-                conversationMetaMapper.insertIfNotExists(meta);
+                sessionMetaMapper.insertIfNotExists(meta);
                 log.info("Initialized conversation meta for session {}", sessionId);
             } else {
                 currentMaxSeq = meta.getMaxSeq();
@@ -125,7 +125,7 @@ public class MessageBatchProcessor {
 
             // ========== Step 4: 更新 max_seq ==========
             long newMaxSeq = currentMaxSeq + batchSize;
-            conversationMetaMapper.updateMaxSeq(sessionId, newMaxSeq);
+            sessionMetaMapper.updateMaxSeq(sessionId, newMaxSeq);
             log.info("Updated max_seq for session {} to {}", sessionId, newMaxSeq);
 
             // ========== Step 5: 异步写入 Redis 缓存 ==========

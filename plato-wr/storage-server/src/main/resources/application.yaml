@@ -35,8 +35,8 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 连接池配置（HikariCP）
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: 100
+      minimum-idle: 20
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
@@ -51,10 +51,10 @@ spring:
       # 连接池配置
       lettuce:
         pool:
-          max-active: 20
+          max-active: 100
           max-idle: 10
           min-idle: 5
-          max-wait: 3000ms
+          max-wait: -1ms
 
 # MyBatis 配置
 mybatis:
@@ -82,13 +82,13 @@ grpc:
 # 日志配置
 logging:
   level:
-    root: INFO
-    com.plato.storage: INFO
-    com.plato.storage.grpc: INFO
-    com.plato.storage.service: DEBUG
-    com.plato.storage.producer: INFO
+    root: ERROR
+    com.plato.storage: ERROR
+    com.plato.storage.grpc: ERROR
+    com.plato.storage.service: ERROR
+    com.plato.storage.producer: ERROR
     # SQL日志（开发环境开启）
-    com.plato.storage.repository.mapper: DEBUG
+    com.plato.storage.repository.mapper: ERROR
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 

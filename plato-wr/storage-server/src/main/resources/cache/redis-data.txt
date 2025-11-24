@@ -39,7 +39,7 @@ Redis (数据结构)
   - Type: HASH
   - Field: <session_id>
   - Value: <count>
-  
+
 风险：未读数 (`unread_count`) 的维护
 
 - 现状：使用 Redis Hash `INCR` 计数。

@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 /**
  * 会话元数据表实体
  * 
- * 对应数据库表: t_conversation_meta
+ * 对应数据库表: session_meta
  * 主键: session_id
  * 
  * 职责：维护会话的 max_seq_id（最大序列号）
@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ConversationMetaEntity {
+public class SessionMetaEntity {
 
     /**
      * 会话ID（主键）

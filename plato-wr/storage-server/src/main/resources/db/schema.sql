@@ -1,3 +1,6 @@
+CREATE DATABASE IF NOT EXISTS `im_storage`;
+USE `im_storage`;
+
 -- 消息表
 -- 职责：存储所有会话的消息数据
 -- 主键：(session_id, seq_id) - 保证会话内消息有序
