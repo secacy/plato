@@ -41,13 +41,15 @@ public interface InboxMapper {
         InboxEntity selectByPrimaryKey(@Param("userId") Long userId, @Param("sessionId") Long sessionId);
 
         /**
-         * 查询用户的所有收件箱
+         * 查询用户的所有收件箱（按置顶和消息时间排序）
          * 
          * @param userId 用户ID
+         * @param limit  限制条数
          * @return 收件箱列表
          */
-        @Select("SELECT * FROM inbox WHERE user_id = #{userId} ORDER BY update_time DESC")
-        List<InboxEntity> selectByUserId(@Param("userId") Long userId);
+        @Select("SELECT * FROM inbox WHERE user_id = #{userId} " +
+                        "ORDER BY is_pinned DESC, last_msg_time DESC LIMIT #{limit}")
+        List<InboxEntity> selectByUserId(@Param("userId") Long userId, @Param("limit") int limit);
 
         /**
          * 更新已读位置

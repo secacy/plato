@@ -1,72 +1,30 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.plato.storage.repository.mapper.MessageMapper">
+<mapper namespace="com.plato.storage.repository.mapper.SessionMetaMapper">
 
-    <!-- ResultMap for MessageEntity with JSON fields -->
-    <resultMap id="BaseResultMap" type="com.plato.storage.repository.entity.MessageEntity">
+    <!-- ResultMap for SessionMetaEntity -->
+    <resultMap id="BaseResultMap" type="com.plato.storage.repository.entity.SessionMetaEntity">
         <result column="session_id" property="sessionId" jdbcType="BIGINT"/>
-        <result column="seq_id" property="seqId" jdbcType="BIGINT"/>
-        <result column="msg_id" property="msgId" jdbcType="BIGINT"/>
-        <result column="sender_id" property="senderId" jdbcType="BIGINT"/>
-        <result column="msg_type" property="msgType" jdbcType="INTEGER"/>
-        <result column="content" property="content" jdbcType="OTHER" typeHandler="com.plato.storage.repository.typehandler.JsonStringTypeHandler"/>
-        <result column="status" property="status" jdbcType="INTEGER"/>
-        <result column="extra" property="extra" jdbcType="OTHER" typeHandler="com.plato.storage.repository.typehandler.JsonMapTypeHandler"/>
+        <result column="max_seq_id" property="maxSeq" jdbcType="BIGINT"/>
+        <result column="last_msg_time" property="lastMsgTime" jdbcType="BIGINT"/>
+        <result column="last_msg_sender_id" property="lastMsgSenderId" jdbcType="BIGINT"/>
+        <result column="last_msg_type" property="lastMsgType" jdbcType="INTEGER"/>
+        <result column="last_msg_content" property="lastMsgContent" jdbcType="VARCHAR"/>
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
     </resultMap>
 
-    <!-- Insert message -->
-    <insert id="insert" parameterType="com.plato.storage.repository.entity.MessageEntity">
-        INSERT INTO message (
-            session_id,
-            seq_id,
-            msg_id,
-            sender_id,
-            msg_type,
-            content,
-            status,
-            extra,
-            create_time
-        ) VALUES (
-            #{sessionId},
-            #{seqId},
-            #{msgId},
-            #{senderId},
-            #{msgType},
-            #{content, jdbcType=OTHER, typeHandler=com.plato.storage.repository.typehandler.JsonStringTypeHandler},
-            #{status},
-            #{extra, jdbcType=OTHER, typeHandler=com.plato.storage.repository.typehandler.JsonMapTypeHandler},
-            #{createTime}
-        )
-    </insert>
-
-    <!-- Batch Insert messages -->
-    <insert id="batchInsert" parameterType="java.util.List">
-        INSERT INTO message (
-            session_id,
-            seq_id,
-            msg_id,
-            sender_id,
-            msg_type,
-            content,
-            status,
-            extra,
-            create_time
-        ) VALUES
-        <foreach collection="list" item="item" separator=",">
-            (
-            #{item.sessionId},
-            #{item.seqId},
-            #{item.msgId},
-            #{item.senderId},
-            #{item.msgType},
-            #{item.content, jdbcType=OTHER, typeHandler=com.plato.storage.repository.typehandler.JsonStringTypeHandler},
-            #{item.status},
-            #{item.extra, jdbcType=OTHER, typeHandler=com.plato.storage.repository.typehandler.JsonMapTypeHandler},
-            #{item.createTime}
-            )
-        </foreach>
-    </insert>
+    <!-- Update session snapshot after message -->
+    <update id="updateSnapshot">
+        UPDATE session_meta 
+        SET max_seq_id = #{maxSeq},
+            last_msg_time = #{lastMsgTime},
+            last_msg_sender_id = #{lastMsgSenderId},
+            last_msg_type = #{lastMsgType},
+            last_msg_content = #{lastMsgContent},
+            update_time = NOW()
+        WHERE session_id = #{sessionId}
+    </update>
 
 </mapper>
 

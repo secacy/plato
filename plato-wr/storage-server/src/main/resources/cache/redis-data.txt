@@ -10,16 +10,27 @@ Redis (数据结构)
     - Type: String
     - Value：Protobuf 序列化后的二进制数据（比 JSON 节省 50%+ 内存，且解析更快）。
     - TTL: 1day
-- 会话列表 (Session List - 倒排):
-  - 职责: 存储“我的会话列表”，按最后一条消息时间排序。
-  - Key: user_sessions:<user_id>
-    - Type: ZSET
-    - Score: <last_msg_timestamp>
-    - Value: <session_id>
-  - Key: session_meta:<user_id>
-    - Type: HASH
-    - Field: session_id
-    - Value: 该会话的预览数据(包含 unread_count, last_seq_id, is_pinned) (使用 JSON 或 Protobuf 序列化)
+
+- 用户收件箱列表 (User Timeline) - 仅存 ID 和 排序Score
+  - Key: user_inbox_zset:<user_id>
+  - Type: ZSET
+    - Score:
+      - 普通会话: update_time_ms
+      - 置顶会话: update_time_ms + 1_000_000_000_000 (或者使用双 ZSET 策略，这里假设用 Magic Score 简单处理)
+  - Member: session_id
+  - 作用: 仅用于分页拉取 Session ID 列表。
+- 用户会话偏好 (User Session Meta) - 存用户的 Seq 和 设置
+  - Key: user_inbox_meta:{user_id}
+  - Type: HASH
+  - Field: session_id
+  - Value (Protobuf/JSON): last_read_seq_id(已读水位)、is_muted、is_pinned、create_time
+  - 作用: 存储用户读到了哪里，以及是否免打扰。
+- 会话全局最新快照 (Session Global Snapshot) - 存预览和 MaxSeq
+  - Key: session_latest:{session_id}
+  - Type: STRING (Protobuf 序列化) 或 HASH
+  - Value: max_seq、last_msg_content、last_msg_type、last_msg_sender、last_msg_time
+  - 作用: 所有群成员共享。发消息时，只需要更新这 一个 Key，而不是更新 2000 个用户的 Key。
+
 - 成员缓存 (Member Cache):
   - 职责: 存储“会话-成员”关系
   - Key: session_members:<session_id>
@@ -31,20 +42,3 @@ Redis (数据结构)
   - Type: String
   - Value: "processing"
   - TTL：通常设置为 300秒 (5分钟)。
-
-
-- 未读计数 (Unread Count):
-  - 职责：存储用户对于会话的未读数
-  - Key: unread_count:<user_id>
-  - Type: HASH
-  - Field: <session_id>
-  - Value: <count>
-
-风险：未读数 (`unread_count`) 的维护
-
-- 现状：使用 Redis Hash `INCR` 计数。
-- 问题：分布式环境下，计数器非常容易由“多重消费”或“消息丢失”导致不准。一旦不准，用户体验极差（显示有红点，点进去没消息）。
-- 建议：不要直接存未读数。
-  - 存储用户的 `read_seq` (已读水位)。
-  - 未读数 = `session.max_seq` (当前会话最新序号) - `user.read_seq` (用户已读序号)。
-  - 这是一个计算值，永远准确，且支持多端同步。

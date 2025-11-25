@@ -32,28 +32,54 @@ public class RedisKeyConstants {
         return "inbox:" + userId;
     }
 
-    // ========== 会话列表 ==========
+    // ========== 收件箱列表 (新设计) ==========
 
     /**
-     * 用户的会话列表 (按时间排序)
-     * KEY: user_sessions:{user_id}
-     * TYPE: Sorted Set
-     * SCORE: last_msg_time_ms
-     * VALUE: session_id
+     * 用户收件箱列表 (User Timeline) - 仅存 ID 和排序 Score
+     * KEY: user_inbox_zset:{user_id}
+     * TYPE: ZSET
+     * SCORE:
+     * - 普通会话: last_msg_time_ms
+     * - 置顶会话: last_msg_time_ms + 1_000_000_000_000 (Magic Number)
+     * MEMBER: session_id
+     * 作用: 仅用于分页拉取 Session ID 列表
      */
-    public static String userSessionsKey(Long userId) {
-        return "user_sessions:" + userId;
+    public static String userInboxZSetKey(Long userId) {
+        return "user_inbox_zset:" + userId;
     }
 
     /**
-     * 会话的元数据 (预览信息)
-     * KEY: session_meta:{user_id}
-     * TYPE: Hash
+     * 用户会话偏好 (User Session Meta) - 存用户的 Seq 和设置
+     * KEY: user_inbox_meta:{user_id}
+     * TYPE: HASH
      * FIELD: session_id
-     * VALUE: JSON (unread_count, last_msg_preview, is_pinned, is_muted)
+     * VALUE (JSON): read_seq、is_muted、is_pinned、create_time
+     * 作用: 存储用户读到了哪里，以及是否免打扰
      */
-    public static String sessionMetaKey(Long userId) {
-        return "session_meta:" + userId;
+    public static String userInboxMetaKey(Long userId) {
+        return "user_inbox_meta:" + userId;
+    }
+
+    /**
+     * 会话全局最新快照 (Session Global Snapshot) - 存预览和 MaxSeq
+     * KEY: session_latest:{session_id}
+     * TYPE: STRING (JSON 序列化)
+     * VALUE: max_seq、last_msg_content、last_msg_type、last_msg_sender、last_msg_time
+     * 作用: 所有群成员共享。发消息时，只需要更新这一个 Key
+     */
+    public static String sessionLatestKey(Long sessionId) {
+        return "session_latest:" + sessionId;
+    }
+
+    /**
+     * 空对象标记 (用于缓存穿透防护)
+     * KEY: null_marker:{type}:{id}
+     * TYPE: STRING
+     * VALUE: "1"
+     * TTL: 60 秒
+     */
+    public static String nullMarkerKey(String type, Long id) {
+        return "null_marker:" + type + ":" + id;
     }
 
     // ========== 群成员缓存 ==========
@@ -104,18 +130,5 @@ public class RedisKeyConstants {
      */
     public static String messageMetaKey(Long msgId) {
         return "msg_meta:" + msgId;
-    }
-
-    // ========== 未读计数 ==========
-
-    /**
-     * 用户的未读计数
-     * KEY: unread_count:{user_id}
-     * TYPE: HASH
-     * FIELD: session_id
-     * VALUE: count
-     */
-    public static String unreadCountKey(Long userId) {
-        return "unread_count:" + userId;
     }
 }

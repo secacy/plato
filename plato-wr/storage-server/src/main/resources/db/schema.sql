@@ -33,28 +33,36 @@ CREATE TABLE `member` (
 CREATE TABLE `inbox` (
                          `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
                          `session_id` BIGINT UNSIGNED NOT NULL COMMENT '会话ID',
-                         `last_read_seq_id` BIGINT NOT NULL DEFAULT 0 COMMENT '已读到的位置',
-    -- 这两个字段必须存，因为它们影响"未读数"的计算逻辑 (免打扰不计红点)
+
+    -- 核心计数与状态
+                         `last_read_seq_id` BIGINT NOT NULL DEFAULT 0 COMMENT '用户已读位点',
                          `is_pinned` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否置顶',
                          `is_muted` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否免打扰',
-    -- 用于列表排序 (通常是最新一条消息的时间)
-                         `update_time` TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新时间',
-                         PRIMARY KEY (`user_id`, `session_id`),
-    -- 索引：用于快速拉取"我的会话列表"并按时间排序
-                         INDEX `idx_user_time` (`user_id`, `update_time` DESC)
-) COMMENT '用户会话收件箱 (冷数据)';
 
--- ============================================================================
--- 新架构新增表：会话元数据表
--- 职责：维护每个会话的 max_seq_id，用于 Micro-Batching 中生成消息的 seq_id
--- ============================================================================
-CREATE TABLE `t_conversation_meta` (
+    -- [新增] 避免查 Message 表
+                         `last_msg_time` BIGINT NOT NULL DEFAULT 0 COMMENT '最新消息时间(用于排序)',
+
+                         PRIMARY KEY (`user_id`, `session_id`),
+    -- 索引优化：配合 ZSET 逻辑，置顶的需要排前面。
+    -- 实际查询时通常是 WHERE user_id = ? ORDER BY is_pinned DESC, last_msg_time DESC
+                         INDEX `idx_user_view` (`user_id`, `is_pinned` DESC, `last_msg_time` DESC)
+) COMMENT '用户会话收件箱(冷数据)';
+
+-- 会话元数据与快照表
+CREATE TABLE `session_meta` (
     `session_id`   BIGINT UNSIGNED NOT NULL COMMENT '会话ID',
-    `max_seq`      BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '当前最大序列号',
+    -- 核心：序列号生成
+    `max_seq_id`      BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '当前最大序列号',
+    -- 新增：会话列表展示所需的快照数据 (冗余)
+    `last_msg_time` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '最新消息时间(用于排序)',
+    `last_msg_sender_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '发送者UID(用于展示 "张三: ...")',
+    `last_msg_type`      INT NOT NULL DEFAULT 1 COMMENT '消息类型 (1:文本, 2:图片, 3:撤回...)',
+    `last_msg_content` VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '消息预览内容(截断)',
+    -- 基础字段
     `create_time`  TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT '创建时间',
     `update_time`  TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6) COMMENT '更新时间',
     PRIMARY KEY (`session_id`)
-) COMMENT '会话元数据表 - 用于 seq_id 原子生成';
+) COMMENT '会话元数据与快照表(热点表)';
 
 -- ============================================================================
 -- 索引说明

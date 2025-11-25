@@ -48,6 +48,12 @@ public class InboxEntity {
     private Boolean isMuted;
 
     /**
+     * 最新消息时间 (毫秒时间戳，用于排序)
+     * 新增字段，避免查询 Message 表
+     */
+    private Long lastMsgTime;
+
+    /**
      * 更新时间 (用于列表排序)
      */
     private LocalDateTime updateTime;

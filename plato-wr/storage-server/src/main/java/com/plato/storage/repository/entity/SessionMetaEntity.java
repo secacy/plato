@@ -36,6 +36,26 @@ public class SessionMetaEntity {
     private Long maxSeq;
 
     /**
+     * 最新消息时间 (毫秒时间戳，用于排序)
+     */
+    private Long lastMsgTime;
+
+    /**
+     * 最新消息发送者ID (用于展示 "张三: ...")
+     */
+    private Long lastMsgSenderId;
+
+    /**
+     * 最新消息类型 (1:文本, 2:图片, 3:撤回...)
+     */
+    private Integer lastMsgType;
+
+    /**
+     * 最新消息内容 (截断的预览文本)
+     */
+    private String lastMsgContent;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createTime;

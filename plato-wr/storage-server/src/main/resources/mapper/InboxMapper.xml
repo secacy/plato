@@ -9,6 +9,7 @@
         <result column="last_read_seq_id" property="lastReadSeqId" jdbcType="BIGINT"/>
         <result column="is_pinned" property="isPinned" jdbcType="BOOLEAN"/>
         <result column="is_muted" property="isMuted" jdbcType="BOOLEAN"/>
+        <result column="last_msg_time" property="lastMsgTime" jdbcType="BIGINT"/>
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
     </resultMap>
 
@@ -20,6 +21,7 @@
             last_read_seq_id,
             is_pinned,
             is_muted,
+            last_msg_time,
             update_time
         ) VALUES (
             #{userId},
@@ -27,12 +29,14 @@
             #{lastReadSeqId},
             #{isPinned},
             #{isMuted},
+            #{lastMsgTime},
             #{updateTime}
         )
         ON DUPLICATE KEY UPDATE
             last_read_seq_id = VALUES(last_read_seq_id),
             is_pinned = VALUES(is_pinned),
             is_muted = VALUES(is_muted),
+            last_msg_time = VALUES(last_msg_time),
             update_time = VALUES(update_time)
     </insert>
 
@@ -44,6 +48,7 @@
             last_read_seq_id,
             is_pinned,
             is_muted,
+            last_msg_time,
             update_time
         ) VALUES
         <foreach collection="list" item="entity" separator=",">
@@ -53,6 +58,7 @@
                 #{entity.lastReadSeqId},
                 #{entity.isPinned},
                 #{entity.isMuted},
+                #{entity.lastMsgTime},
                 #{entity.updateTime}
             )
         </foreach>
@@ -60,6 +66,7 @@
             last_read_seq_id = VALUES(last_read_seq_id),
             is_pinned = VALUES(is_pinned),
             is_muted = VALUES(is_muted),
+            last_msg_time = VALUES(last_msg_time),
             update_time = VALUES(update_time)
     </insert>
 
